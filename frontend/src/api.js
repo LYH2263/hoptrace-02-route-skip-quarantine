@@ -20,4 +20,11 @@ export const api = {
   ingest: () => req('/api/ingest/run', { method: 'POST' }),
   proofs: (waybillId) =>
     req(waybillId ? `/api/status-proofs?waybill_id=${encodeURIComponent(waybillId)}` : '/api/status-proofs'),
+  routeSkipProofs: ({ waybillId, batchId } = {}) => {
+    const qs = new URLSearchParams()
+    if (waybillId) qs.set('waybill_id', waybillId)
+    if (batchId) qs.set('batch_id', batchId)
+    const s = qs.toString()
+    return req(`/api/route-skip-proofs${s ? `?${s}` : ''}`)
+  },
 }

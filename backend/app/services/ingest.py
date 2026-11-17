@@ -3,11 +3,11 @@ import uuid
 from datetime import datetime, timezone
 
 from app.db import FIXTURES_DIR, connect
-from app.seed import map_status
+from app.modules import route_skip_quarantine as rsq
 
 
 def run_batch() -> dict:
-    """基座装载：按夹具追加；乱序重排 / 旁路 / 重复隔离留给功能题空桩。"""
+    """装载批次：写点与跳站物化在同一事务内完成，失败整体回滚（失败闭）。"""
     path = FIXTURES_DIR / "ingest_batch.json"
     if not path.exists():
         return {"ok": False, "error": "缺少 ingest_batch.json"}
@@ -20,6 +20,7 @@ def run_batch() -> dict:
     try:
         conn.execute("BEGIN IMMEDIATE")
         written = 0
+        affected: set[str] = set()
         for hop in hops:
             wid = hop["waybill_id"]
             exists = conn.execute("SELECT 1 FROM waybills WHERE id=?", (wid,)).fetchone()
@@ -44,17 +45,27 @@ def run_batch() -> dict:
             )
             if conn.execute("SELECT changes()").fetchone()[0]:
                 written += 1
-                proj = map_status(hop["event_code"])
-                conn.execute("UPDATE waybills SET status_proj=? WHERE id=?", (proj, wid))
-                conn.execute(
-                    "INSERT INTO status_proofs(waybill_id, last_hop_id, mapped_code, proj_value, created_at) VALUES (?,?,?,?,?)",
-                    (wid, hop["id"], hop["event_code"], proj, _now()),
-                )
+            affected.add(wid)
+
+        # 本批携带的声明路径同样落库（路径一处变化即驱动物化重放）
+        for route in payload.get("declared_routes", []):
+            rsq.upsert_route(conn, route["waybill_id"], route["location_codes"], batch_id)
+            affected.add(route["waybill_id"])
+
+        # 全序校验 + 正式轴/投影/证明/隔离原子物化
+        quarantined: dict[str, int] = {}
+        for wid in sorted(affected):
+            result = rsq.evaluate_waybill(conn, wid, batch_id)
+            if result["violation"] is not None:
+                quarantined[wid] = len(result["quarantined_hop_ids"])
+
         report = {
             "batch_id": batch_id,
             "cutoff_ts": cutoff,
             "written": written,
             "input": len(hops),
+            "waybills_materialized": len(affected),
+            "route_skip_quarantine": quarantined,
         }
         conn.execute(
             "INSERT OR REPLACE INTO ingest_batches(id, cutoff_ts, created_at, report_json) VALUES (?,?,?,?)",

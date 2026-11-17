@@ -344,3 +344,115 @@ a { color: inherit; text-decoration: none; }
   .brand-strip { grid-template-columns: 1fr; }
   .chip-nav { justify-content: flex-start; }
 }
+
+/* ---- route_skip_quarantine ---- */
+.danger-text { color: var(--danger); }
+.danger-stat b { color: var(--danger); }
+
+.flag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.flag-ok { background: #e2f0e9; color: var(--mint); }
+.flag-danger { background: #f6e0dc; color: var(--danger); }
+
+.route-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: #eef5f0;
+  border: 1px dashed var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.route-strip .route-label {
+  color: var(--muted);
+  margin-right: 6px;
+  letter-spacing: 0.12em;
+}
+.route-code { color: var(--forest-2); font-weight: 600; }
+.route-arrow { color: var(--amber); }
+
+.axis-sub {
+  margin: 18px 0 10px;
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--forest-2);
+}
+.axis-sub.danger-text { color: var(--danger); }
+
+.axis-stop {
+  margin: 4px 0 0 16px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--danger);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--danger);
+  background: #f6e0dc;
+}
+
+.v-axis-quar { border-left-color: var(--danger); opacity: 0.92; }
+.hop-node-quar::before {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px #f6e0dc;
+}
+.hop-node-quar .loc { color: var(--danger); }
+
+.dot.dot-quar { background: var(--danger); }
+.dot-line.cut {
+  background: repeating-linear-gradient(90deg, var(--danger) 0 6px, transparent 6px 10px);
+  width: 22px;
+}
+
+.section-title {
+  margin: 0 0 12px;
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+.filter-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.filter-bar input {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 13px;
+  min-width: 180px;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--forest);
+  border: 1px solid var(--line);
+}
+.btn-ghost:hover { background: #eef5f0; }
+
+.route-cell { max-width: 220px; word-break: break-all; }
+.member-cell { min-width: 240px; }
+.member-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.member-chip b { color: var(--danger); }

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from app.db import FIXTURES_DIR, connect
+from app.modules import route_skip_quarantine as rsq
 
 
 SCHEMA = """
@@ -62,6 +63,7 @@ EVENT_STATUS = {
 def init_db():
     conn = connect()
     conn.executescript(SCHEMA)
+    rsq.init_schema(conn)  # 声明路径表 / 跳站证明表 / 正式轴停点列
     n = conn.execute("SELECT COUNT(*) AS c FROM waybills").fetchone()["c"]
     if n == 0:
         _seed_fixtures(conn)
@@ -92,29 +94,19 @@ def _seed_fixtures(conn):
                 hop.get("channel", "primary"),
             ),
         )
-    _refresh_projections(conn)
+    # 声明路径落库（有序 location_code 列表），路径来自夹具而非校验函数写死
+    for route in data.get("declared_routes", []):
+        rsq.upsert_route(conn, route["waybill_id"], route["location_codes"], rsq.SEED_BATCH)
+    _materialize_waybills(conn)
 
 
-def _refresh_projections(conn):
-    rows = conn.execute(
-        """
-        SELECT h.waybill_id, h.id, h.event_code
-        FROM hops h
-        JOIN (
-          SELECT waybill_id, MAX(event_ts || '|' || id) AS mk
-          FROM hops WHERE retracted=0 AND channel='primary'
-          GROUP BY waybill_id
-        ) t ON t.waybill_id=h.waybill_id AND (h.event_ts || '|' || h.id)=t.mk
-        WHERE h.retracted=0 AND h.channel='primary'
-        """
-    ).fetchall()
-    for r in rows:
-        proj = EVENT_STATUS.get(r["event_code"], "未知")
-        conn.execute("UPDATE waybills SET status_proj=? WHERE id=?", (proj, r["waybill_id"]))
-        conn.execute(
-            "INSERT INTO status_proofs(waybill_id, last_hop_id, mapped_code, proj_value, created_at) VALUES (?,?,?,?,datetime('now'))",
-            (r["waybill_id"], r["id"], r["event_code"], proj),
-        )
+def _materialize_waybills(conn):
+    """装载/物化统一入口：点序或路径变化在此驱动正式轴与投影同成败。"""
+    ids = [r["id"] for r in conn.execute("SELECT id FROM waybills ORDER BY id").fetchall()]
+    results = []
+    for wid in ids:
+        results.append(rsq.evaluate_waybill(conn, wid, rsq.SEED_BATCH))
+    return results
 
 
 def map_status(event_code: str) -> str:
